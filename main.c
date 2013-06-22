@@ -132,7 +132,8 @@ typedef struct {
 		Elf64_Ehdr v64;
 	} elf_header;
 
-	void *elf_sec;
+	void *elf_sec; // Sections
+	char *elf_str; // String table
 
 } Program;
 
@@ -150,8 +151,25 @@ int emu_open_file(Program *p, char *filename) {
 	p->fd = fd;
 
 	p->elf_sec = NULL;
+	p->elf_str = NULL;
 
 	return !fd;
+}
+
+void emu_free(Program *p) {
+	assert(p != NULL);
+
+	if (p->fd) {
+		fclose(p->fd);
+	}
+
+	if (p->elf_sec) {
+		free(p->elf_sec);
+	}
+
+	if (p->elf_str) {
+		free(p->elf_str);
+	}
 }
 
 int emu_verify_elf(Program *p) {
@@ -235,26 +253,63 @@ int emu_sec_header(Program *p) {
 
 		secs = (Elf64_Shdr*) p->elf_sec;
 
+		//
 		printf("Section header table\n");
 		for (i = 0; i < h->e_shnum; i++) {
 			printf("name = %d, type = %d\n", secs[i].sh_name, secs[i].sh_type);
 		}
+		//
 
+	} else {
+		fprintf(stderr, "Arch not supported\n");
+		return -1;
 	}
+
+	return 0;
 }
 
-void emu_free(Program *p) {
-	assert(p != NULL);
+int emu_str_table(Program *p) {
 
-	if (p->fd) {
-		fclose(p->fd);
+	if (p->is_x64) {
+		Elf64_Ehdr *h;
+		Elf64_Shdr *secs;
+		Elf64_Shdr *strtabsec;
+
+		h = &p->elf_header.v64;
+
+		if (h->e_shstrndx >= SHN_LORESERVE) {
+			fprintf(stderr, "Op. not supported\n");
+			return -1;
+		}
+
+		secs = (Elf64_Shdr*) p->elf_sec;
+		strtabsec = &secs[h->e_shstrndx];
+
+		if (strtabsec->sh_type != SHT_STRTAB) {
+			fprintf(stderr, "Invalid value for strtabsec->type\n");
+			return -1;
+		}
+
+		if (strtabsec->sh_size > 0) {
+			int i;
+
+			fseek(p->fd, strtabsec->sh_offset, SEEK_SET);
+			p->elf_str = (char*) malloc(strtabsec->sh_size);
+			fread(p->elf_str, 1, strtabsec->sh_size, p->fd);
+
+			printf("Sections with string [ %d ] \n", strtabsec->sh_size);
+			for (i = 0; i < h->e_shnum; i++) {
+				printf("name = %s\n", p->elf_str + secs[i].sh_name);
+			}
+		}
+
+	} else {
+		fprintf(stderr, "Arch not supported\n");
+		return -1;
 	}
 
-	if (p->elf_sec) {
-		free(p->elf_sec);
-	}
-}
-
+	return 0;
+} 
 
 void options_init(Options *options) {
 	assert(options != NULL);
@@ -318,6 +373,10 @@ int main(int argc, char **argv) {
 	}
 
 	if (emu_sec_header(&p)) {
+		goto free_emu;
+	}
+
+	if (emu_str_table(&p)) {
 		goto free_emu;
 	}
 	
