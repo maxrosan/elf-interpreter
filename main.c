@@ -6,122 +6,7 @@
 #include <stdint.h>
 #include <endian.h>
 
-typedef uint8_t		Elf_Byte;
-
-typedef uint32_t	Elf32_Addr;	/* Unsigned program address */
-typedef uint32_t	Elf32_Off;	/* Unsigned file offset */
-typedef int32_t		Elf32_Sword;	/* Signed large integer */
-typedef uint32_t	Elf32_Word;	/* Unsigned large integer */
-typedef uint16_t	Elf32_Half;	/* Unsigned medium integer */
-
-typedef uint64_t	Elf64_Addr;
-typedef uint64_t	Elf64_Off;
-typedef int32_t		Elf64_Shalf;
-
-typedef int32_t		Elf64_Sword;
-typedef uint32_t	Elf64_Word;
-
-typedef int64_t		Elf64_Sxword;
-typedef uint64_t	Elf64_Xword;
-
-typedef uint32_t	Elf64_Half;
-typedef uint16_t	Elf64_Quarter;
-
-#define EI_NIDENT 16
-
-#define ELFDATA2LSB 1
-#define ELFDATA2MSB 2
-
-#define SHN_UNDEF 	0
-#define SHN_LORESERVE 	0xff00
-#define SHN_LOPROC 	0xff00
-#define SHN_HIPROC 	0xff1f
-#define SHN_LOOS 	0xff20
-#define SHN_HIOS 	0xff3f
-#define SHN_ABS 	0xfff1
-#define SHN_COMMON 	0xfff2
-#define SHN_XINDEX 	0xffff
-#define SHN_HIRESERVE 	0xffff
-
-/* sh_type */
-#define SHT_NULL	0		/* inactive */
-#define SHT_PROGBITS	1		/* program defined information */
-#define SHT_SYMTAB	2		/* symbol table section */
-#define SHT_STRTAB	3		/* string table section */
-#define SHT_RELA	4		/* relocation section with addends*/
-#define SHT_HASH	5		/* symbol hash table section */
-#define SHT_DYNAMIC	6		/* dynamic section */
-#define SHT_NOTE	7		/* note section */
-#define SHT_NOBITS	8		/* no space section */
-#define SHT_REL		9		/* relation section without addends */
-#define SHT_SHLIB	10		/* reserved - purpose unknown */
-#define SHT_DYNSYM	11		/* dynamic symbol table section */
-#define SHT_NUM		12		/* number of section types */
-#define SHT_LOPROC	0x70000000	/* reserved range for processor */
-#define SHT_HIPROC	0x7fffffff	/*  specific section header types */
-#define SHT_LOUSER	0x80000000	/* reserved range for application */
-#define SHT_HIUSER	0xffffffff	/*  specific indexes */
-
-typedef struct {
-	Elf32_Word	sh_name;
-	Elf32_Word	sh_type;
-	Elf32_Word	sh_flags;
-	Elf32_Addr	sh_addr;
-	Elf32_Off	sh_offset;
-	Elf32_Word	sh_size;
-	Elf32_Word	sh_link;
-	Elf32_Word	sh_info;
-	Elf32_Word	sh_addralign;
-	Elf32_Word	sh_entsize;
-} Elf32_Shdr;
-
-typedef struct {
-	Elf64_Word	sh_name;
-	Elf64_Word	sh_type;
-	Elf64_Xword	sh_flags;
-	Elf64_Addr	sh_addr;
-	Elf64_Off	sh_offset;
-	Elf64_Xword	sh_size;
-	Elf64_Word	sh_link;
-	Elf64_Word	sh_info;
-	Elf64_Xword	sh_addralign;
-	Elf64_Xword	sh_entsize;
-} Elf64_Shdr;
-
-/* ELF Header */
-typedef struct {
-	unsigned char	e_ident[EI_NIDENT]; /* ELF Identification */
-	Elf32_Half	e_type;		/* object file type */
-	Elf32_Half	e_machine;	/* machine */
-	Elf32_Word	e_version;	/* object file version */
-	Elf32_Addr	e_entry;	/* virtual entry point */
-	Elf32_Off	e_phoff;	/* program header table offset */
-	Elf32_Off	e_shoff;	/* section header table offset */
-	Elf32_Word	e_flags;	/* processor-specific flags */
-	Elf32_Half	e_ehsize;	/* ELF header size */
-	Elf32_Half	e_phentsize;	/* program header entry size */
-	Elf32_Half	e_phnum;	/* number of program header entries */
-	Elf32_Half	e_shentsize;	/* section header entry size */
-	Elf32_Half	e_shnum;	/* number of section header entries */
-	Elf32_Half	e_shstrndx;	/* section header table's "section  header string table" entry offset */
-} Elf32_Ehdr;
-
-typedef struct {
-	unsigned char	e_ident[EI_NIDENT];	/* Id bytes */
-	Elf64_Quarter	e_type;			/* file type */
-	Elf64_Quarter	e_machine;		/* machine type */
-	Elf64_Half	e_version;		/* version number */
-	Elf64_Addr	e_entry;		/* entry point */
-	Elf64_Off	e_phoff;		/* Program hdr offset */
-	Elf64_Off	e_shoff;		/* Section hdr offset */
-	Elf64_Half	e_flags;		/* Processor flags */
-	Elf64_Quarter	e_ehsize;		/* sizeof ehdr */
-	Elf64_Quarter	e_phentsize;		/* Program header entry size */
-	Elf64_Quarter	e_phnum;		/* Number of program headers */
-	Elf64_Quarter	e_shentsize;		/* Section header entry size */
-	Elf64_Quarter	e_shnum;		/* Number of section headers */
-	Elf64_Quarter	e_shstrndx;		/* String table index */
-} Elf64_Ehdr;
+#include "elf.h"
 
 typedef struct {
 
@@ -134,6 +19,7 @@ typedef struct {
 
 	void *elf_sec; // Sections
 	char *elf_str; // String table
+	void *elf_phr; // Program header entries
 
 } Program;
 
@@ -152,6 +38,7 @@ int emu_open_file(Program *p, char *filename) {
 
 	p->elf_sec = NULL;
 	p->elf_str = NULL;
+	p->elf_phr = NULL;
 
 	return !fd;
 }
@@ -169,6 +56,10 @@ void emu_free(Program *p) {
 
 	if (p->elf_str) {
 		free(p->elf_str);
+	}
+
+	if (p->elf_phr) {
+		free(p->elf_phr);
 	}
 }
 
@@ -290,6 +181,8 @@ int emu_str_table(Program *p) {
 			return -1;
 		}
 
+		printf("shstrndx = %u\n", h->e_shstrndx);
+
 		if (strtabsec->sh_size > 0) {
 			int i;
 
@@ -299,7 +192,7 @@ int emu_str_table(Program *p) {
 
 			printf("Sections with string [ %d ] \n", strtabsec->sh_size);
 			for (i = 0; i < h->e_shnum; i++) {
-				printf("name = %s\n", p->elf_str + secs[i].sh_name);
+				printf("name[%d] = %s\n", i, p->elf_str + secs[i].sh_name);
 			}
 		}
 
@@ -309,7 +202,110 @@ int emu_str_table(Program *p) {
 	}
 
 	return 0;
-} 
+}
+
+int emu_program_header(Program *p) {
+
+	if (p->is_x64) {
+
+		Elf64_Ehdr *h;
+		Elf64_Shdr *secs;
+		Elf64_Shdr *strtabsec;
+		Elf64_Phdr *hdrs;
+
+		int text_entry = 0, i;
+
+		h = &p->elf_header.v64;
+
+		if (h->e_phnum == 0) {
+			fprintf(stderr, "Invalid number for number of phrs\n");
+			return -1;
+		}
+		
+		fseek(p->fd, h->e_phoff, SEEK_SET);
+
+		if (h->e_phentsize != sizeof(Elf64_Phdr)) {
+			fprintf(stderr, "Invalid size of PHDR\n");
+			return -1;
+		}
+
+		hdrs = (Elf64_Phdr*) malloc(sizeof(Elf64_Phdr) * h->e_phnum);
+		p->elf_phr = (void*) hdrs;
+
+		fread(hdrs, sizeof(Elf64_Phdr), h->e_phnum, p->fd);
+		
+		for (i = 0; i < h->e_phnum && !(hdrs[i].p_type == 1 && hdrs[i].p_flags ==  5); i++) {
+			printf("seg %d %d %x\n", i, hdrs[i].p_type, hdrs[i].p_flags);
+		}
+		
+		if (i == h->e_phnum) {
+			fprintf(stderr, "Failed to find .text entry\n");
+			return -1;
+		}
+
+	} else {
+		fprintf(stderr, "Arch not supported\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int emu_load_symbols(Program *p) {
+
+	if (p->is_x64) {
+
+		Elf64_Ehdr *h;
+		Elf64_Shdr *secs;
+		int i, j, symtab, symtab_shndx;
+		void *symtab_ptr;
+
+		uint32_t strtab;
+		char *strtab_ptr;
+		
+		h = &p->elf_header.v64;
+		secs = (Elf64_Shdr*) p->elf_sec;
+
+		for (i = 1; i < h->e_shnum; i++) {
+			if(!strcmp(p->elf_str + secs[i].sh_name, ".symtab")) {
+				symtab = i;
+				printf("symtab = %d\n", secs[i].sh_name);
+			} else if (!strcmp(p->elf_str + secs[i].sh_name, ".strtab")) {
+				strtab = i;
+				strtab_ptr = (char*) malloc(secs[i].sh_size);
+			}
+		}
+
+
+		assert(secs[symtab].sh_type == SHT_SYMTAB );
+
+		printf("=== %d %d\n", secs[symtab].sh_entsize, sizeof(Elf64_Sym));
+
+		int nument = secs[symtab].sh_size / secs[symtab].sh_entsize;
+		symtab_ptr = malloc(sizeof(Elf64_Sym) * nument);
+
+		fseek(p->fd, secs[symtab].sh_offset, SEEK_SET);
+		fread(symtab_ptr, sizeof(Elf64_Sym), nument, p->fd);
+
+		pread(fileno(p->fd), strtab_ptr, secs[strtab].sh_size, secs[strtab].sh_offset);
+		printf("strtab = %s\n", strtab_ptr + 1);
+
+		printf("nument = %d\n", nument);
+		for (i = 1; i < nument; i++) {
+			Elf64_Sym sym = ((Elf64_Sym*) symtab_ptr)[i];
+			if (sym.st_name) {
+				printf("symb %x %x %x %s\n", sym.st_name, sym.st_value, sym.st_shndx, strtab_ptr + sym.st_name);
+			}
+		}
+	
+	} else {
+		fprintf(stderr, "Arch not supported\n");
+		return -1;
+	}
+
+	return 0;
+
+}
 
 void options_init(Options *options) {
 	assert(options != NULL);
@@ -377,6 +373,14 @@ int main(int argc, char **argv) {
 	}
 
 	if (emu_str_table(&p)) {
+		goto free_emu;
+	}
+
+	if (emu_program_header(&p)) {
+		goto free_emu;
+	}
+
+	if (emu_load_symbols(&p)) {
 		goto free_emu;
 	}
 	
