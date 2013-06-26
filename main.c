@@ -10,11 +10,11 @@
 #include "emu.h"
 #include "options.h"
 
+static Program p;
+static Options opt;
+
 int main(int argc, char **argv) {
 #define TRY(func, label, ...) if(func(&p, ##__VA_ARGS__)) goto label;
-
-	Program p;
-	Options opt;
 
 	options_init(&opt);
 	
@@ -33,7 +33,10 @@ int main(int argc, char **argv) {
 	TRY(emu_program_header, free_emu);
 	TRY(emu_load_strtable, free_emu);
 	TRY(emu_load_symbols, free_emu);
+	TRY(emu_load_address, free_emu);
 	
+	TRY(emu_translate, free_emu);
+
 free_emu:
 	emu_free(&p);
 free_opt:

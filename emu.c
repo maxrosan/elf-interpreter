@@ -8,10 +8,12 @@ int emu_open_file(Program *p, char *filename) {
 	fd = fopen(filename, "r");
 	p->fd = fd;
 
-	p->elf_sec = NULL;
-	p->elf_str = NULL;
-	p->elf_phr = NULL;
+	p->elf_sec    = NULL;
+	p->elf_str    = NULL;
+	p->elf_phr    = NULL;
 	p->elf_strtab = NULL;
+	p->elf_symtab = NULL;
+	p->text       = NULL;
 
 	return !fd;
 }
@@ -37,6 +39,14 @@ void emu_free(Program *p) {
 
 	if (p->elf_strtab) {
 		free(p->elf_strtab);
+	}
+
+	if (p->elf_symtab) {
+		free(p->elf_symtab);
+	}
+
+	if (p->text) {
+		free(p->text);
 	}
 }
 
@@ -169,7 +179,8 @@ int emu_str_table(Program *p) {
 
 			printf("Sections with string [ %d ] \n", strtabsec->sh_size);
 			for (i = 0; i < h->e_shnum; i++) {
-				printf("name[%d] = %s\n", i, p->elf_str + secs[i].sh_name);
+				printf("name[%d] = %s %x %x\n", i, p->elf_str + secs[i].sh_name, secs[i].sh_type, 
+				 secs[i].sh_addr);
 			}
 		}
 
@@ -219,6 +230,12 @@ int emu_program_header(Program *p) {
 			fprintf(stderr, "Failed to find .text entry\n");
 			return -1;
 		}
+
+		p->text = (char*) malloc(hdrs[i].p_memsz);
+		memset(p->text, 0x0, hdrs[i].p_memsz);
+		pread(fileno(p->fd), p->text, hdrs[i].p_filesz, hdrs[i].p_offset);
+
+		p->text_vaddr = hdrs[i].p_vaddr;
 
 	} else {
 		fprintf(stderr, "Arch not supported\n");
@@ -312,6 +329,8 @@ int emu_load_symbols(Program *p) {
 		for (i = 0, j = 0; i < secs[idx].sh_size; i += secs[idx].sh_entsize, j++) {
 			printf("sym %s\n", p->elf_strtab + symtab[j].st_name);
 		}
+
+		p->elf_numsymb = j;
 	
 	} else {
 		fprintf(stderr, "Arch not supported\n");
@@ -320,4 +339,87 @@ int emu_load_symbols(Program *p) {
 
 	return 0;
 
+}
+
+Elf64_Addr __x64_find_vaddress(Program *p, const char *name) {
+
+	assert(p != NULL);
+	assert(name != NULL);
+
+	if (p->is_x64) {
+		Elf64_Ehdr *h;
+		Elf64_Shdr *secs;
+		Elf64_Sym  *symtab;
+		int i;
+
+		h = &p->elf_header.v64;
+		secs = (Elf64_Shdr*) p->elf_sec;
+		symtab = (Elf64_Sym*) p->elf_symtab;
+
+		for (i = 0; i < p->elf_numsymb; i++) {
+			if (!strcmp(p->elf_strtab + symtab[i].st_name, name)) {
+				return symtab[i].st_value;
+			}
+		}
+
+	} else {
+		fprintf(stderr, "Arch not supported\n");
+		return -1;
+	}
+	
+	return 0;
+}
+
+int emu_load_address(Program *p) {
+
+	assert(p != NULL);
+
+	if (p->is_x64) {
+
+		Elf64_Ehdr *h;
+		Elf64_Addr addr;
+		int i;
+
+		h = &p->elf_header.v64;
+	
+		p->pc = p->text + (__x64_find_vaddress(p, "main") - p->text_vaddr);
+		p->sptr = 0;
+
+		memset(p->reg64, 0x0, sizeof(Elf64_Xword) * __NUM_REGS_X64);
+
+	} else {
+		fprintf(stderr, "Arch not supported\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int emu_translate(Program *p) {
+
+	if (p->is_x64) {
+	
+		int i;
+		char op;
+
+		switch (op = *(p->pc++)) {
+			case 0x50 ... 0x57: // push
+				printf("push %x\n", op - 0x50);
+				p->stack[p->sptr++] = p->reg64[op - 0x50 + RAX];
+				break;
+			case 0x48: {
+				//char op = *(p->pc++);
+				//
+
+				}; break;
+			default:
+				printf("op %x unknown\n", *(p->pc));
+		}
+
+	} else {
+		fprintf(stderr, "Arch not supported\n");
+		return -1;
+	}
+
+	return 0;
 }

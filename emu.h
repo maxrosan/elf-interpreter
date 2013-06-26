@@ -8,6 +8,13 @@
 #include "elf.h"
 
 typedef struct {
+	char opcode;
+	
+} Opcode;
+
+enum { RAX, RCX, RDX, RBX, RSP, RBP, __NUM_REGS_X64 };
+
+typedef struct {
 
 	FILE *fd;
 	int is_x64;
@@ -20,7 +27,18 @@ typedef struct {
 	char *elf_str; // Sections String table
 	void *elf_phr; // Program header entries
 	char *elf_strtab; // Symbols string table
+	
 	void *elf_symtab; // Symbols table
+	int  elf_numsymb; //  Number of entries in the ST
+
+	char *pc;
+	char *text;
+	Elf64_Addr  text_vaddr;
+
+	Elf64_Xword stack[100];
+	int  sptr;
+
+	Elf64_Xword reg64[__NUM_REGS_X64];
 
 } Program;
 
