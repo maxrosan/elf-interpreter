@@ -31,8 +31,8 @@ typedef struct {
 	void *elf_symtab; // Symbols table
 	int  elf_numsymb; //  Number of entries in the ST
 
-	char *pc;
-	char *text;
+	uint8_t *pc;
+	uint8_t *text;
 	Elf64_Addr  text_vaddr;
 
 	Elf64_Xword stack[100];

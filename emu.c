@@ -231,7 +231,7 @@ int emu_program_header(Program *p) {
 			return -1;
 		}
 
-		p->text = (char*) malloc(hdrs[i].p_memsz);
+		p->text = (uint8_t*) malloc(hdrs[i].p_memsz);
 		memset(p->text, 0x0, hdrs[i].p_memsz);
 		pread(fileno(p->fd), p->text, hdrs[i].p_filesz, hdrs[i].p_offset);
 
@@ -395,25 +395,63 @@ int emu_load_address(Program *p) {
 	return 0;
 }
 
+inline static void __dump_byte(const char *name, uint8_t byteval) {
+	int i = 8;
+
+	printf("%s = 0b", name);
+
+	while (i--) {
+		printf("%d", (byteval >> i) & 1);
+	}
+
+	printf(" = 0x%x\n", byteval);
+}
+
 int emu_translate(Program *p) {
+#define NEXT_OP (op = *(p->pc)++)
+#define MASK(len) (~(0xff << len))
 
 	if (p->is_x64) {
 	
 		int i;
-		char op;
+		uint8_t op;
+		uint8_t mod, reg, rm;
 
-		switch (op = *(p->pc++)) {
+		while(1)
+		switch (NEXT_OP) {
+
 			case 0x50 ... 0x57: // push
-				printf("push %x\n", op - 0x50);
+				printf("push 0x%x\n", op - 0x50);
 				p->stack[p->sptr++] = p->reg64[op - 0x50 + RAX];
-				break;
-			case 0x48: {
-				//char op = *(p->pc++);
-				//
+			break;
 
-				}; break;
+			case 0x48:
+			{
+				switch (NEXT_OP) {
+					case 0x89: // mov
+					{
+						//p->reg64[RBP] = p->reg64[
+						NEXT_OP;
+						mod = (op >> 6) & MASK(2);
+						reg = (op >> 3) & MASK(3);
+						rm  = op & MASK(3);
+						
+						__dump_byte("mod", mod);
+						__dump_byte("reg", reg);
+						__dump_byte("rm", rm);
+
+						return -1;
+					}
+					default:
+						printf("op 0x48 %x unknown\n", op);
+						return -1;
+				}
+
+			}; break;
+
 			default:
-				printf("op %x unknown\n", *(p->pc));
+				printf("op %x unknown\n", op);
+				return -1;
 		}
 
 	} else {
