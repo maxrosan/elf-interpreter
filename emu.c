@@ -409,45 +409,117 @@ inline static void __dump_byte(const char *name, uint8_t byteval) {
 
 int emu_translate(Program *p) {
 #define NEXT_OP (op = *(p->pc)++)
+
 #define MASK(len) (~(0xff << len))
+
+#define MODRM(mod, reg, rm) do { \
+	mod = (op >> 6) & MASK(2); \
+	reg = (op >> 3) & MASK(3); \
+	rm  = op & MASK(3); } while(0)
+
+#define SIB(scale, index, base) do { \
+	scale = (op >> 6) & MASK(2); \
+	index = (op >> 3) & MASK(3); \
+	base  = op & MASK(3); } while(0)
+
+#define DUMP_MODRM do { \
+	__dump_byte("mod", mod); \
+	__dump_byte("reg", reg); \
+	__dump_byte("rm", rm); } while(0)
+
+#define DUMP_SIB do { \
+	__dump_byte("scale", scale); \
+	__dump_byte("index", index); \
+	__dump_byte("base", base); } while(0)
+	
+	printf("\n\n");
 
 	if (p->is_x64) {
 	
 		int i;
 		uint8_t op;
-		uint8_t mod, reg, rm;
+		uint8_t mod, reg, rm, scale, index, base;
 
 		while(1)
 		switch (NEXT_OP) {
 
 			case 0x50 ... 0x57: // push
-				printf("push 0x%x\n", op - 0x50);
+				printf("push %s\n", reg64_names[RAX + op - 0x50]);
 				p->stack[p->sptr++] = p->reg64[op - 0x50 + RAX];
 			break;
 
 			case 0x48:
 			{
 				switch (NEXT_OP) {
+
 					case 0x89: // mov
 					{
 						//p->reg64[RBP] = p->reg64[
 						NEXT_OP;
-						mod = (op >> 6) & MASK(2);
-						reg = (op >> 3) & MASK(3);
-						rm  = op & MASK(3);
+						MODRM(mod, reg, rm);
 						
-						__dump_byte("mod", mod);
-						__dump_byte("reg", reg);
-						__dump_byte("rm", rm);
+						if (mod == 0x3) {
+							printf("mov %s,%s\n", reg64_names[RAX + reg], reg64_names[RAX + rm]);
+							p->reg64[RAX + rm] = p->reg64[RAX + reg];
+						} else {
+							printf("%d mod not supported\n", __LINE__);
+							return -1;
+						}
 
-						return -1;
-					}
+					} break;
+
+					case 0x83: // arith
+					{
+
+						NEXT_OP;
+						MODRM(mod, reg, rm);
+
+						if (reg == 0x5) { // sub
+
+							printf("sub ");
+	
+							if (mod == 0x3) {
+								NEXT_OP;
+								p->reg64[RAX + rm] -= op;
+
+								printf("%s,0x%x\n", reg64_names[RAX + rm], op);
+							} else {
+								printf("%d mod not supported\n", __LINE__);
+								return -1;
+							}
+						}
+
+					} break;
+
 					default:
 						printf("op 0x48 %x unknown\n", op);
 						return -1;
 				}
 
-			}; break;
+			} break;
+
+			case 0x89: // mov
+			{
+				NEXT_OP;
+				MODRM(mod, reg, rm);
+
+				printf("mov ");
+
+				if (mod == 0x1) {
+					uint32_t disp;
+
+					NEXT_OP;
+					SIB(scale, index, base);
+					printf("%s (%s)\n", reg86_names[EAX + reg], reg64_names[RAX + rm]);
+
+					DUMP_SIB;
+				}
+
+				DUMP_MODRM;
+
+				return -1;
+	
+			} break;
 
 			default:
 				printf("op %x unknown\n", op);

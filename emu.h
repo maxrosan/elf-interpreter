@@ -13,6 +13,15 @@ typedef struct {
 } Opcode;
 
 enum { RAX, RCX, RDX, RBX, RSP, RBP, __NUM_REGS_X64 };
+enum { EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI, __NUM_REGS_X86 };
+
+const char *reg64_names[__NUM_REGS_X64] = {
+	"RAX", "RCX", "RDX", "RBX", "RSP", "RBP"
+};
+
+const char *reg86_names[__NUM_REGS_X86] = {
+	"EAX", "ECX", "EDX", "EBX", "ESP", "EBP", "ESI", "EDI"
+};
 
 typedef struct {
 
